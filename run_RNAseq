@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import subprocess
+import tempfile
+import logging
+import sys
+import re
+
+
+VERSION = "0.1"
+
+
+if sys.version_info[0] < 3:
+    print("This script requires Python 3+")
+    exit(1)
+
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s : %(levelname)s : %(message)s',
+                    datefmt='%H:%M:%S')
+logger = logging.getLogger(__name__)
+
+
+import argparse
+import json
+
+# if not is_in_path("samtools") and not is_in_path("fastp") and not is_in_path("cgmaptools") and not is_in_path("java"):
+#     exit("please check the env if have samtools cgmaptools fastp")
+def move_result(path,output_directory):
+    if not os.path.exists(output_directory):
+        os.mkdir(output_directory)
+    if path is not None and isinstance(path, str) and os.path.exists(path):
+        name = os.path.basename(path)
+        dst = name if output_directory is None else os.path.join(output_directory, name)
+        if os.path.exists(dst):
+            os.remove(dst)
+        subprocess.run(["mv",path,dst])
+    elif path is not None and isinstance(path,list):
+        for path_s in path:
+            name = os.path.basename(path_s)
+            dst = name if output_directory is None else os.path.join(output_directory, name)
+            if os.path.exists(dst):
+                os.remove(dst)
+            subprocess.run(["cp",path_s,dst])
+    else:
+        print("Some thing is wrong,maybe the file path isn't exists")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="RNAseq analysis workflow created by Wang Jiaxuan base on WDL in 22.03.08"
+    )
+
+    parser.add_argument("--input","-i",type=str, help="the input json")
+
+    parser.add_argument(
+        "--cromwell","-c", help="Optional path to cromwell jar file",
+    )
+
+    parser.add_argument("--version", "-v", action='store_true', help="show version tag: {}".format(VERSION))
+
+    args = parser.parse_args()
+
+    if args.version:
+        exit(VERSION)
+
+    cromwell = args.cromwell
+    input_json = args.input
+    base_dir = os.path.dirname(os.path.realpath(__file__))
+    wdl_dir = os.path.join(base_dir, "WDL")
+    meta_file = os.path.join(wdl_dir, "output.RNAseq.json")
+    
+    cromwell_jar = None
+    if cromwell is None:
+        for f in os.listdir(wdl_dir):
+            if f.startswith('cromwell-') and f.endswith('.jar'):
+                cromwell_jar = os.path.join(wdl_dir, f)
+                break
+    else:
+        cromwell_jar = os.path.abspath(cromwell)
+    if cromwell_jar is None or not os.path.exists(cromwell_jar):
+        exit(
+            "Cromwell jar file not found. Please run WDL/download_cromwell.sh to download."
+        )
+
+    cromwell_conf = os.path.join(wdl_dir, "cromwell.conf")
+    if not os.path.exists(cromwell_conf):
+        exit("Cromwell configuration not found")
+
+    if input_json is None and not os.path.exists(os.path.join(wdl_dir, "input.RNAseq.json")):
+        exit("Need the input parameter with json files")
+    else:
+        input_json = os.path.join(wdl_dir, "input.RNAseq.json")
+
+    cromwell_args = [
+        "java",
+        "-Dconfig.file={}".format(cromwell_conf),
+        "-jar",
+        cromwell_jar,
+        "run",
+        "-i",
+        input_json,
+        '-m',
+        meta_file,
+        os.path.join(wdl_dir, "rna_seq.wdl"),
+    ]
+
+    logger.info("CMD: {}".format(" ".join(cromwell_args)))
+        
+    subprocess.run(cromwell_args)
+
+    logger.info("Cromwell workflow run finished! ")
+
+    #os.remove(json_file)
+    with open(meta_file, 'rt', encoding='UTF-8') as f:
+        metadata = json.load(f)
+    #os.remove(meta_file)
+    if 'outputs' in metadata:
+        outputs = metadata['outputs']
+        for key in outputs:
+            if key.endswith("filter_read1"):
+                move_result(outputs[key],"3.qc")
+            elif key.endswith("filter_read2"):
+                move_result(outputs[key],"3.qc")
+            elif key.endswith("nrrna_read1"):
+                move_result(outputs[key],"4.rtRNA_remove")
+            elif key.endswith("nrrna_read2"):
+                move_result(outputs[key],"4.rtRNA_remove")
+            elif key.endswith("bam"):
+                move_result(outputs[key],"5.genome_mapping")
+            elif key.endswith("gtf"):
+                move_result(outputs[key],"6.novel_transript")
+            elif key.endswith("fpkm_matrix"):
+                move_result(outputs[key],"7.exp")
+            elif key.endswith("tpm_matrix"):
+                move_result(outputs[key],"7.exp")
+            elif key.endswith("count_matrix"):
+                move_result(outputs[key],"7.exp")
+    
+    logger.info("Result have copy to target directory !")
+    
+    subprocess.run(["rm","-rf", "cromwell-executions","cromwell-workflow-logs"])
+
+    logger.info("tmp directory have deleted !")
+
+if __name__ == "__main__":
+    if "--version" in sys.argv:
+        print(f"RNAseq-WDL v{VERSION}")
+        sys.exit(0)
+    
+    main()
