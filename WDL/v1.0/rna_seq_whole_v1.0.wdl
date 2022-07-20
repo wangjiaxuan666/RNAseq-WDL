@@ -5,8 +5,8 @@ workflow RNAseq {
         File matedata_tsv
         String pigz
         String fastp
-        String bowtie2
-        String rrna_index
+        String urmap
+        String urmap_ufi
         String mapping_software
         String genome_index
         String samtools
@@ -17,7 +17,6 @@ workflow RNAseq {
         String python
         File preDE
         String collect_columns
-        Boolean regtf
     }
     
     Array[Array[String]] sample_tsv = read_tsv(matedata_tsv)
@@ -37,10 +36,10 @@ workflow RNAseq {
 
         call remove_rtRNA {
             input :
-                bowtie2 = bowtie2,
+                urmap = urmap,
                 read1 = fastp_qc.filter_fq1,
                 read2 = fastp_qc.filter_fq2,
-                rrna_index = rrna_index,
+                urmap_ufi = urmap_ufi,
                 sample = getinfo.sample,
                 samtools  = samtools
         }
@@ -73,10 +72,10 @@ workflow RNAseq {
     }
 
     scatter ( i in range(length(getinfo.sample))){
-        call stringtie_quantification1 {
+        call stringtie_quantification {
             input :
             bam = "${genome_map.bam[i]}",
-            gtf = if regtf then stringtie_mergeGTF.gtf else annot_gtf,
+            gtf = stringtie_mergeGTF.gtf,
             sample = "${getinfo.sample[i]}",
             stringtie = stringtie
         }
@@ -87,10 +86,10 @@ workflow RNAseq {
             python = python,
             preDE = preDE,
             sample = getinfo.sample,
-            count_s = stringtie_quantification1.count_s,
+            count_s = stringtie_quantification.count_s,
             read_length = read_length,
             collect_columns = collect_columns,
-            fpkm = stringtie_quantification1.fpkm,
+            fpkm = stringtie_quantification.fpkm,
             gtf = stringtie_mergeGTF.gtf
     }
 
@@ -155,45 +154,30 @@ task fastp_qc {
 
 task remove_rtRNA {
     input {
-        String bowtie2
+        String urmap
         File read1
         File read2
-        String rrna_index
+        String urmap_ufi
         String sample
         String samtools
     }
     
     command {
-        # ${bowtie2} \
-        # -ufi ${rrna_index} \
-        # -map2  ${read1} \
-        # -reverse ${read2} \
-        # -samout /dev/stdout | \
-        # ${samtools} fastq \
-        # -f 13 \
-        # -1 ${sample}.filter.non_rrna.R1.fq.gz \
-        # -2 ${sample}.filter.non_rrna.R2.fq.gz \
-        # -@ 4
-
-        ${bowtie2} \
-        --very-sensitive-local \
-        --no-unal \
-        -I 1 \
-        -X 1000 \
-        -p 6 \
-        -x ${rrna_index} \
-        -1 ${read1} \
-        -2 ${read2} \
-        -S ${sample}.rRNA_mapping.sam \
-        --un-conc-gz ${sample}_rRNAremoved.fq.gz 2>${sample}_Map2rRNAStat.xls 
-        
-        ${samtools} view -S -b -o ${sample}_Map2rRNA.bam ${sample}.rRNA_mapping.sam 
-        rm ${sample}.rRNA_mapping.sam 
+        ${urmap} \
+        -ufi ${urmap_ufi} \
+        -map2  ${read1} \
+        -reverse ${read2} \
+        -samout /dev/stdout | \
+        ${samtools} fastq \
+        -f 13 \
+        -1 ${sample}.filter.non_rrna.R1.fq.gz \
+        -2 ${sample}.filter.non_rrna.R2.fq.gz \
+        -@ 4
     }
 
     output {
-        File non_rrna_read1 = "${sample}_rRNAremoved.fq.1.gz"
-        File non_rrna_read2 = "${sample}_rRNAremoved.fq.2.gz"
+        File non_rrna_read1 = "${sample}.filter.non_rrna.R1.fq.gz"
+        File non_rrna_read2 = "${sample}.filter.non_rrna.R2.fq.gz"
     }
 }
 
@@ -271,7 +255,7 @@ task stringtie_mergeGTF {
     }
 }
 
-task stringtie_quantification1 {
+task stringtie_quantification {
     input {
         String bam
         String gtf

@@ -117,7 +117,7 @@ task getinfo {
         String sample_read2 = sample_sheet[3]
     }
     command {
-        echo "yes,I get the info"
+        echo -e "sample:${sample_name}\ngroup:${sample_group}\nread1:${sample_read1}\nread2:${sample_read2}"
     }
 
     output {
@@ -138,18 +138,21 @@ task fastp_qc {
     }
 
     command {
-        ${fastp} \
-        -i ${read1} \
-        -I ${read2} \
-        -o ${sample}.filter.R1.fq.gz \
-        -O ${sample}.filter.R2.fq.gz
+        # ${fastp} \
+        # -i ${read1} \
+        # -I ${read2} \
+        # -o ${sample}.filter.R1.fq.gz \
+        # -O ${sample}.filter.R2.fq.gz
+
+        cp ${read1} ${sample}.filter.R1.fq.gz
+        cp ${read2} ${sample}.filter.R2.fq.gz
     }
 
     output {
         File filter_fq1 = "${sample}.filter.R1.fq.gz"
 	    File filter_fq2 = "${sample}.filter.R2.fq.gz"
-        File filter_report_json = "fastp.json"
-        File filter_report_html = "fastp.html"
+        # File filter_report_json = "fastp.json"
+        # File filter_report_html = "fastp.html"
     }
 }
 

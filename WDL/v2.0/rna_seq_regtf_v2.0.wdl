@@ -17,7 +17,6 @@ workflow RNAseq {
         String python
         File preDE
         String collect_columns
-        Boolean regtf
     }
     
     Array[Array[String]] sample_tsv = read_tsv(matedata_tsv)
@@ -76,7 +75,7 @@ workflow RNAseq {
         call stringtie_quantification1 {
             input :
             bam = "${genome_map.bam[i]}",
-            gtf = if regtf then stringtie_mergeGTF.gtf else annot_gtf,
+            gtf = stringtie_mergeGTF.gtf,
             sample = "${getinfo.sample[i]}",
             stringtie = stringtie
         }

@@ -1,18 +1,18 @@
 {
-    "RNAseq.matedata_tsv" : "workflow/RNAseq/1.pre_info/sample_input_path.tsv",
-    "RNAseq.urmap_ufi" : "biosoft/rRNA_Data/URMAP_index/rRNA.dna.8.ufi",
-    "RNAseq.genome_index":"workflow/RNAseq/test/chrX_data/indexes/chrX_tran",  
-    "RNAseq.annot_gtf" : "workflow/RNAseq/test/chrX_data/genes/chrX.gtf",
+    "RNAseq.matedata_tsv" : "/data/workflow/RNAseq/1.pre_info/sample_input_path.tsv",
+    "RNAseq.rrna_index" : "/data/biosoft/rRNA_Data/BOWTIE2_index/rRNA",
+    "RNAseq.genome_index":"/data/workflow/RNAseq/test/chrX_data/indexes/chrX_tran",  
+    "RNAseq.annot_gtf" : "/data/workflow/RNAseq/test/chrX_data/genes/chrX.gtf",
     "RNAseq.read_length" : "150",
-    
-    "RNAseq.python" : "biosoft/miniconda3/bin/python",
-    "RNAseq.collect_columns" : "biosoft/miniconda3/bin/collect-columns",
-    "RNAseq.samtools" : "biosoft/miniconda3/envs/samtools/bin/samtools",
-    "RNAseq.stringtie" : "biosoft/miniconda3/envs/RNAseq/bin/stringtie",
-    "RNAseq.gffcompare" : "biosoft/miniconda3/envs/SSR/bin/gffcompare",
-    "RNAseq.preDE" : "util/preDE.py",
-    "RNAseq.urmap" : "biosoft/urmap/bin/urmap",
-    "RNAseq.fastp" : "biosoft/miniconda3/envs/RNAseq/bin/fastp",
-    "RNAseq.mapping_software" : "biosoft/hisat2-2.2.0/hisat2",
-    "RNAseq.pigz" : "biosoft/miniconda3/envs/RNAseq/bin/pigz"
+    "RNAseq.regtf" : "false",
+    "RNAseq.python" : "/data/biosoft/miniconda3/bin/python",
+    "RNAseq.collect_columns" : "/data/biosoft/miniconda3/bin/collect-columns",
+    "RNAseq.samtools" : "/data/biosoft/miniconda3/envs/samtools/bin/samtools",
+    "RNAseq.stringtie" : "/data/biosoft/miniconda3/envs/RNAseq/bin/stringtie",
+    "RNAseq.gffcompare" : "/data/biosoft/miniconda3/envs/SSR/bin/gffcompare",
+    "RNAseq.preDE" : "/data/workflow/RNAseq/util/preDE.py",
+    "RNAseq.bowtie2" : "/data/biosoft/miniconda3/envs/RNAseq/bin/bowtie2",
+    "RNAseq.fastp" : "/data/biosoft/miniconda3/envs/RNAseq/bin/fastp",
+    "RNAseq.mapping_software" : "/data/biosoft/hisat2-2.2.0/hisat2",
+    "RNAseq.pigz" : "/data/biosoft/miniconda3/envs/RNAseq/bin/pigz"
 }

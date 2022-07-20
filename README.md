@@ -1,48 +1,84 @@
 # Bulk RNAseq 分析流程
 
 本流程是基于WDL构建的转录组分析流程，采用的分析软件为：
-1. urmap比对去除核糖体
-2. fastp质控
+1. fastp质控
+2. bowtie2去除核糖体序列
 3. Hisat2比对基因组
 4. stringtie组装新转录本并定量
+5. 用DEseq2做差异分析
+6. 用clusterprofile做腹肌分析
 
+待补充
 
-后续待完善的是：
-1. 用DEseq2做差异分析
-2. 用clusterprofile做腹肌分析
-3. 用WGCNA做基因权重共表达网络分析
+7. 用WGCNA做基因权重共表达网络分析
+
+# 更新日志
+
+见[CHANGELOG](./CHANGELOG.txt)
+
+# 更新计划
+
+[] 增加过程选择，可以自由选择从其中一个步骤开始
+[] 增加数据质控的表格处理
 
 # 流程图
 
 ![image-20220309111821786](https://pic-1259340288.cos.ap-guangzhou.myqcloud.com/img/202203091118221646795902hMsqYAimage-20220309111821786.png)
 
+# 环境要求
+
+```
+python 3.6 + 
+collect_columns 
+samtools
+stringtie
+gffcompare
+preDE
+bowtie2
+fastp
+mapping_software
+pigz
+```
+
+# 安装
+
+需要从Gitlab上直接下载到自己的目录下：如果是华大的计算机集群，可以直接用我已经安装好的路径。如果是自己安装对应，就需要修改input.json。
+
+```terimanal
+git clone https://gitlab.genomics.cn/iori/phi/bulk-rna-seq.git
+```
+
 # 运行
 
 ## 输入文件
 
-输入文件是json格式，需要提供对应文件和软件的路径。 这个文件是非常重要的输入文件，其中RNAseq.matedata_tsv对应的表格必须是制表符分割的tsv文件，包括四列，
+输入文件是json格式，需要提供对应文件和软件的路径。 这个文件是非常重要的输入文件，
+但是大部分的软件版本是不用改的。
+需要改动有`RNAseq.matedata_tsv`,`RNAseq.rrna_index`,`RNAseq.genome_index`,`RNAseq.annot_gtf`,`RNAseq.read_length`,其他不用修改，
+其中RNAseq.matedata_tsv对应的表格必须是制表符分割的tsv文件，包括四列，
 第一列是分组，第二列是样本名称，第三列是read1的fq文件，第四列是read2的fq文件。
 
 > 注意要严格按照规范，整理输入文件，否则必报错或者输出结果不对。
 
 ```json
-{
-    "RNAseq.matedata_tsv" : "./1.pre_info/sample_input_path.tsv",# 输入文件的表格，
-    "RNAseq.urmap_ufi" : "~/biosoft/rRNA_Data/URMAP_index/rRNA.dna.8.ufi", # 去核糖体的序列index，不用修改
-    "RNAseq.genome_index":"./chrX_data/indexes/chrX_tran",  # hisat2构建的全基因组索引
-    "RNAseq.annot_gtf" : "./chrX_data/genes/chrX.gtf",# 基因组的注释文件gtf
-    "RNAseq.read_length" : "150", # read 长度，一般而言，华大是100，illumina是150
+    {
+    "RNAseq.matedata_tsv" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/workflow/RNAseq/1.pre_info/sample_input_path.tsv",,# 输入文件的表格，
+    "RNAseq.rrna_index" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/rRNA_Data/BOWTIE2_index/rRNA",# 去核糖体的序列index，不用修改
+    "RNAseq.genome_index":"/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/workflow/RNAseq/test/chrX_data/indexes/chrX_tran",  # hisat2构建的全基因组索引
+    "RNAseq.annot_gtf" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/workflow/RNAseq/test/chrX_data/genes/chrX.gtf",# 基因组的注释文件gtf
+    "RNAseq.read_length" : "150",# read 长度，一般而言，华大是100，illumina是150
     #------------下面全是软件的文件途径---------
-    "RNAseq.python" : "~/biosoft/miniconda3/bin/python",
-    "RNAseq.collect_columns" : "~/biosoft/miniconda3/bin/collect-columns",
-    "RNAseq.samtools" : "~/biosoft/miniconda3/envs/samtools/bin/samtools",
-    "RNAseq.stringtie" : "~/biosoft/miniconda3/envs/RNAseq/bin/stringtie",
-    "RNAseq.gffcompare" : "~/biosoft/miniconda3/envs/SSR/bin/gffcompare",
-    "RNAseq.preDE" : "WDL/preDE.py",
-    "RNAseq.urmap" : "~/biosoft/urmap/bin/urmap",
-    "RNAseq.fastp" : "~/biosoft/miniconda3/envs/RNAseq/bin/fastp",
-    "RNAseq.mapping_software" : "~/biosoft/hisat2-2.2.0/hisat2",
-    "RNAseq.pigz" : "~/biosoft/miniconda3/envs/RNAseq/bin/pigz"
+    "RNAseq.regtf" : "false", # 是否需要重构转录本，默认是不需要重构转录本。
+    "RNAseq.python" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/bin/python",
+    "RNAseq.collect_columns" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/bin/collect-columns",
+    "RNAseq.samtools" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/envs/samtools/bin/samtools",
+    "RNAseq.stringtie" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/envs/RNAseq/bin/stringtie",
+    "RNAseq.gffcompare" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/envs/SSR/bin/gffcompare",
+    "RNAseq.preDE" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/workflow/RNAseq/util/preDE.py",
+    "RNAseq.bowtie2" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/envs/RNAseq/bin/bowtie2",
+    "RNAseq.fastp" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/envs/RNAseq/bin/fastp",
+    "RNAseq.mapping_software" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/hisat2-2.2.0/hisat2",
+    "RNAseq.pigz" : "/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/envs/RNAseq/bin/pigz"
 }
 ```
 

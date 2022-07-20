@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/jdfssz1/ST_HEALTH/P21Z10200N0092/wangjiaxuan/biosoft/miniconda3/bin/python
 # -*- coding: utf-8 -*-
 
 import os
@@ -9,7 +9,7 @@ import sys
 import re
 
 
-VERSION = "0.1"
+VERSION = "2.2"
 
 
 if sys.version_info[0] < 3:
@@ -46,13 +46,25 @@ def move_result(path,output_directory):
     else:
         print("Some thing is wrong,maybe the file path isn't exists")
 
+def run_shell(cmd):
+    status = 0
+    try:
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        status = e.returncode
+        output = e.output
+    output = output.decode()
+    return (status, output)
+
 def main():
     parser = argparse.ArgumentParser(
-        description="RNAseq analysis workflow created by Wang Jiaxuan base on WDL in 22.03.08"
+        description="RNAseq analysis workflow created by Wang Jiaxuan base on WDL in 22.06.15"
     )
 
     parser.add_argument("--input","-i",type=str, help="the input json")
 
+    parser.add_argument("--wdl","-w",type=str, help="the WDL script")
+    parser.add_argument("--tmp","-t",action="store_true", help="whethe you want remove the temp dir")
     parser.add_argument(
         "--cromwell","-c", help="Optional path to cromwell jar file",
     )
@@ -66,9 +78,13 @@ def main():
 
     cromwell = args.cromwell
     input_json = args.input
+    wdl_file = args.wdl
+    tmp = args.tmp
     base_dir = os.path.dirname(os.path.realpath(__file__))
     wdl_dir = os.path.join(base_dir, "WDL")
-    meta_file = os.path.join(wdl_dir, "output.RNAseq.json")
+    if not os.path.exists("WDL"):
+        os.mkdir("WDL")
+    meta_file = os.path.join("WDL", "output.RNAseq.json")
     
     cromwell_jar = None
     if cromwell is None:
@@ -83,14 +99,21 @@ def main():
             "Cromwell jar file not found. Please run WDL/download_cromwell.sh to download."
         )
 
+    if wdl_file is None:
+        wdl_file = os.path.join(wdl_dir, "rna_seq.wdl")
+    else:
+        if not os.path.exists(wdl_file):
+            wdl_file = os.path.join(wdl_dir, "rna_seq.wdl")
+
     cromwell_conf = os.path.join(wdl_dir, "cromwell.conf")
     if not os.path.exists(cromwell_conf):
         exit("Cromwell configuration not found")
 
-    if input_json is None and not os.path.exists(os.path.join(wdl_dir, "input.RNAseq.json")):
-        exit("Need the input parameter with json files")
-    else:
-        input_json = os.path.join(wdl_dir, "input.RNAseq.json")
+    if input_json is None:
+        if not os.path.exists(os.path.join(wdl_dir, "input.RNAseq.json")):
+            exit("Need the input parameter with json files")
+        else:
+            input_json = os.path.join(wdl_dir, "input.RNAseq.json")
 
     cromwell_args = [
         "java",
@@ -102,46 +125,51 @@ def main():
         input_json,
         '-m',
         meta_file,
-        os.path.join(wdl_dir, "rna_seq.wdl"),
+        wdl_file,
     ]
 
     logger.info("CMD: {}".format(" ".join(cromwell_args)))
         
-    subprocess.run(cromwell_args)
+    run_result = run_shell(cromwell_args)
 
-    logger.info("Cromwell workflow run finished! ")
+    if run_result[0] == 0:  
 
-    #os.remove(json_file)
-    with open(meta_file, 'rt', encoding='UTF-8') as f:
-        metadata = json.load(f)
-    #os.remove(meta_file)
-    if 'outputs' in metadata:
-        outputs = metadata['outputs']
-        for key in outputs:
-            if key.endswith("filter_read1"):
-                move_result(outputs[key],"3.qc")
-            elif key.endswith("filter_read2"):
-                move_result(outputs[key],"3.qc")
-            elif key.endswith("nrrna_read1"):
-                move_result(outputs[key],"4.rtRNA_remove")
-            elif key.endswith("nrrna_read2"):
-                move_result(outputs[key],"4.rtRNA_remove")
-            elif key.endswith("bam"):
-                move_result(outputs[key],"5.genome_mapping")
-            elif key.endswith("gtf"):
-                move_result(outputs[key],"6.novel_transript")
-            elif key.endswith("fpkm_matrix"):
-                move_result(outputs[key],"7.exp")
-            elif key.endswith("tpm_matrix"):
-                move_result(outputs[key],"7.exp")
-            elif key.endswith("count_matrix"):
-                move_result(outputs[key],"7.exp")
-    
-    logger.info("Result have copy to target directory !")
-    
-    subprocess.run(["rm","-rf", "cromwell-executions","cromwell-workflow-logs"])
+        logger.info("Cromwell workflow run finished! ")
 
-    logger.info("tmp directory have deleted !")
+        #os.remove(json_file)
+        with open(meta_file, 'rt', encoding='UTF-8') as f:
+            metadata = json.load(f)
+        #os.remove(meta_file)
+        if 'outputs' in metadata:
+            outputs = metadata['outputs']
+            for key in outputs:
+                if key.endswith("filter_read1"):
+                    move_result(outputs[key],"3.qc")
+                elif key.endswith("filter_read2"):
+                    move_result(outputs[key],"3.qc")
+                elif key.endswith("nrrna_read1"):
+                    move_result(outputs[key],"4.rtRNA_remove")
+                elif key.endswith("nrrna_read2"):
+                    move_result(outputs[key],"4.rtRNA_remove")
+                elif key.endswith("bam"):
+                    move_result(outputs[key],"5.genome_mapping")
+                elif key.endswith("gtf"):
+                    move_result(outputs[key],"6.novel_transript")
+                elif key.endswith("fpkm_matrix"):
+                    move_result(outputs[key],"7.exp")
+                elif key.endswith("tpm_matrix"):
+                    move_result(outputs[key],"7.exp")
+                elif key.endswith("count_matrix"):
+                    move_result(outputs[key],"7.exp")
+        
+        logger.info("Result have copy to target directory !")
+        
+        if tmp:
+            subprocess.run(["rm","-rf", "cromwell-executions","cromwell-workflow-logs"])
+
+        logger.info("tmp directory have deleted !")
+    else:
+        logger.info("the workflow not success !")
 
 if __name__ == "__main__":
     if "--version" in sys.argv:
